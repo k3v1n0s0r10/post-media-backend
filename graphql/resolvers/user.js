@@ -22,88 +22,88 @@ const generateToken = (user) =>
   );
 
 module.exports = {
-  async login(_, { username, password }, context, info) {
-    const { errors, valid } = validateLoginInput(username, password);
+  Mutation: {
+    async login(_, { username, password }) {
+      const { errors, valid } = validateLoginInput(username, password);
 
-    if (!valid) {
-      throw new UserInputError("Errors", { errors });
-    }
+      if (!valid) {
+        throw new UserInputError("Errors", { errors });
+      }
 
-    const user = await User.findOne({ username });
+      const user = await User.findOne({ username });
 
-    if (!user) {
-      errors.general = "User not found";
-      throw new UserInputError("User not found", { errors });
-    }
+      if (!user) {
+        errors.general = "User not found";
+        throw new UserInputError("User not found", { errors });
+      }
 
-    const match = await bcrypt.compare(password, user.password);
+      const match = await bcrypt.compare(password, user.password);
 
-    if (!match) {
-      errors.general = "Wrong credentials";
-      throw new UserInputError("Wrong credentials", { errors });
-    }
+      if (!match) {
+        errors.general = "Wrong credentials";
+        throw new UserInputError("Wrong credentials", { errors });
+      }
 
-    const token = generateToken(user);
+      const token = generateToken(user);
 
-    return {
-      ...user._doc,
-      id: user._id,
-      token,
-    };
-  },
-  async register(
-    _,
-    { registerInput: { username, email, password, confirmPassword } },
-    context,
-    info
-  ) {
-    const { valid, errors } = validateRegisterInput(
-      username,
-      email,
-      password,
-      confirmPassword
-    );
-
-    if (!valid) {
-      throw new UserInputError("Errors", { errors });
-    }
-
-    const user = {
-      username: await User.findOne({ username }),
-      email: await User.findOne({ email }),
-    };
-
-    if (user.username || user.email) {
-      throw new UserInputError(
-        user.username ? "Username is taken" : "Email is taken",
-        {
-          errors: {
-            taken: user.username
-              ? "This username is already taken"
-              : "This email is already taken",
-          },
-        }
+      return {
+        ...user._doc,
+        id: user._id,
+        token,
+      };
+    },
+    async register(
+      _,
+      { registerInput: { username, email, password, confirmPassword } }
+    ) {
+      const { valid, errors } = validateRegisterInput(
+        username,
+        email,
+        password,
+        confirmPassword
       );
-    }
 
-    password = await bcrypt.hash(password, 12);
+      if (!valid) {
+        throw new UserInputError("Errors", { errors });
+      }
 
-    const newUser = new User({
-      email,
-      username,
-      password,
-      confirmPassword,
-      createdAt: new Date().toISOString(),
-    });
+      const user = {
+        username: await User.findOne({ username }),
+        email: await User.findOne({ email }),
+      };
 
-    const res = await newUser.save();
+      if (user.username || user.email) {
+        throw new UserInputError(
+          user.username ? "Username is taken" : "Email is taken",
+          {
+            errors: {
+              taken: user.username
+                ? "This username is already taken"
+                : "This email is already taken",
+            },
+          }
+        );
+      }
 
-    const token = generateToken(res);
+      password = await bcrypt.hash(password, 12);
 
-    return {
-      ...res._doc,
-      id: res._id,
-      token,
-    };
+      const newUser = new User({
+        email,
+        username,
+        password,
+        confirmPassword,
+        createdAt: new Date().toISOString(),
+      });
+
+      const res = await newUser.save();
+
+      const token = generateToken(res);
+
+      return {
+        ...res._doc,
+        id: res._id,
+        token,
+      };
+    },
   },
 };
